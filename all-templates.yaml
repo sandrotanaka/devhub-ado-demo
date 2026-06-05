@@ -1,0 +1,8 @@
+apiVersion: backstage.io/v1alpha1
+kind: Location
+metadata:
+  name: quarkus-ado-oauth
+  description: Templates Quarkus + Azure DevOps — OAuth sem PAT
+spec:
+  targets:
+    - ./templates/quarkus-ado-oauth/template.yaml

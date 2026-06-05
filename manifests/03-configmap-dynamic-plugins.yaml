@@ -1,0 +1,140 @@
+# ──────────────────────────────────────────────────────────────────────────────
+# 03-configmap-dynamic-plugins.yaml
+# Aplicar: oc apply -f 03-configmap-dynamic-plugins.yaml -n devhub
+# Após aplicar: oc rollout restart deployment/backstage-developer-hub -n devhub
+# ──────────────────────────────────────────────────────────────────────────────
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: developer-hub-dynamic-plugins
+  namespace: devhub
+data:
+  dynamic-plugins.yaml: |
+    includes:
+      - dynamic-plugins.default.yaml
+    plugins:
+
+      # ── Scaffolder ────────────────────────────────────────────────────────────
+      - disabled: false
+        package: ./dynamic-plugins/dist/backstage-community-plugin-scaffolder-backend-module-kubernetes-dynamic
+      - disabled: true
+        package: ./dynamic-plugins/dist/backstage-plugin-scaffolder-backend-module-github-dynamic
+
+      # ── HTTP Request — registra action http:backstage:request ─────────────────
+      # Já incluso no dynamic-plugins.default.yaml — apenas habilitando
+      # NOTA: Este plugin injeta automaticamente o Bearer token do usuário em
+      # toda requisição, a menos que o template já defina Authorization explicitamente.
+      # Comportamento: if (token && !authToken) { headers.authorization = Bearer token }
+      - disabled: false
+        package: ./dynamic-plugins/dist/roadiehq-scaffolder-backend-module-http-request-dynamic
+
+      # ── Azure DevOps Frontend ─────────────────────────────────────────────────
+      # Exibe aba "Azure Pipelines - CI" nas páginas de componentes do catálogo
+      - disabled: false
+        package: oci://ghcr.io/redhat-developer/rhdh-plugin-export-overlays/backstage-community-plugin-azure-devops:bs_1.45.3__0.23.0
+        pluginConfig:
+          dynamicPlugins:
+            frontend:
+              backstage-community.plugin-azure-devops:
+                entityTabs:
+                  - path: /ci
+                    title: Azure Pipelines - CI
+                    mountPoint: entity.page.ci
+                mountPoints:
+                  - mountPoint: entity.page.ci/cards
+                    importName: EntityAzurePipelinesContent
+                    config:
+                      layout:
+                        gridColumn: 1 / -1
+
+      # ── Azure DevOps Backend ──────────────────────────────────────────────────
+      - disabled: false
+        package: oci://ghcr.io/redhat-developer/rhdh-plugin-export-overlays/backstage-community-plugin-azure-devops-backend:bs_1.45.3__0.23.0
+
+      # ── Azure DevOps Annotator Processor ──────────────────────────────────────
+      - disabled: false
+        package: oci://ghcr.io/redhat-developer/rhdh-plugin-export-overlays/backstage-community-plugin-catalog-backend-module-azure-devops-annotator-processor:bs_1.45.3__0.14.0
+
+      # ── Azure DevOps Scaffolder Actions ───────────────────────────────────────
+      # Registra: azure:repository:clone, azure:repository:push,
+      #           azure:pipeline:create, azure:pipeline:run, azure:pr:create
+      - disabled: false
+        package: oci://ghcr.io/redhat-developer/rhdh-plugin-export-overlays/backstage-community-plugin-scaffolder-backend-module-azure-devops:bs_1.45.3__0.18.0
+
+      # ── Azure DevOps Search ───────────────────────────────────────────────────
+      - disabled: false
+        package: oci://ghcr.io/redhat-developer/rhdh-plugin-export-overlays/backstage-community-plugin-search-backend-module-azure-devops:bs_1.45.3__0.1.2
+
+      # ── GitHub (desabilitado — ambiente ADO-only) ─────────────────────────────
+      - disabled: true
+        package: oci://ghcr.io/redhat-developer/rhdh-plugin-export-overlays/roadiehq-backstage-plugin-github-pull-requests:bs_1.45.3__3.6.2
+      - disabled: true
+        package: oci://ghcr.io/redhat-developer/rhdh-plugin-export-overlays/roadiehq-backstage-plugin-github-insights:bs_1.45.3__3.4.1
+      - disabled: true
+        package: oci://ghcr.io/redhat-developer/rhdh-plugin-export-overlays/backstage-community-plugin-github-issues:bs_1.45.3__0.16.0
+
+      # ── TSSC ──────────────────────────────────────────────────────────────────
+      - disabled: false
+        package: oci://quay.io/redhat-tssc/backstage-plugins:1.9.0!tssc-plugins-backstage-community-plugin-multi-source-security-viewer
+        pluginConfig:
+          dynamicPlugins:
+            frontend:
+              tssc-plugins.backstage-community-plugin-multi-source-security-viewer:
+                entityTabs:
+                  - mountPoint: entity.page.ci
+                    path: /ci
+                    title: CI
+                mountPoints:
+                  - config:
+                      if:
+                        allOf:
+                          - isMultiCIAvailable
+                      layout:
+                        gridColumn: 1 / -1
+                        gridRowStart: 2
+                    importName: EntityMultiCIPipelinesContent
+                    mountPoint: entity.page.ci/cards
+      - disabled: false
+        package: oci://quay.io/redhat-tssc/backstage-plugins:1.9.0!tssc-plugins-backstage-community-plugin-multi-source-security-viewer-backend
+
+      # ── Kubernetes (desabilitado) ─────────────────────────────────────────────
+      - disabled: true
+        package: ./dynamic-plugins/dist/backstage-plugin-kubernetes
+      - disabled: true
+        package: ./dynamic-plugins/dist/backstage-plugin-kubernetes-backend-dynamic
+
+      # ── Topology ──────────────────────────────────────────────────────────────
+      - disabled: false
+        package: ./dynamic-plugins/dist/backstage-community-plugin-topology
+
+      # ── TechDocs ──────────────────────────────────────────────────────────────
+      - disabled: false
+        package: ./dynamic-plugins/dist/backstage-plugin-techdocs
+      - disabled: false
+        package: ./dynamic-plugins/dist/backstage-plugin-techdocs-backend-dynamic
+
+      # ── Tech Radar ────────────────────────────────────────────────────────────
+      - disabled: false
+        package: ./dynamic-plugins/dist/backstage-community-plugin-tech-radar
+
+      # ── Notifications ─────────────────────────────────────────────────────────
+      - disabled: false
+        package: ./dynamic-plugins/dist/backstage-plugin-notifications
+      - disabled: false
+        package: ./dynamic-plugins/dist/backstage-plugin-signals
+      - disabled: false
+        package: ./dynamic-plugins/dist/backstage-plugin-notifications-backend-dynamic
+      - disabled: false
+        package: ./dynamic-plugins/dist/backstage-plugin-signals-backend-dynamic
+
+      # ── MicrosoftGraph ────────────────────────────────────────────────────────
+      # DESABILITADO — requer permissões Application no App Registration:
+      #   Microsoft Graph → User.Read.All (Application)
+      #   Microsoft Graph → GroupMember.Read.All (Application)
+      # Para habilitar, adicionar também no app-config:
+      #   catalog.providers.microsoftGraphOrg.providerId:
+      #     tenantId: ${AZURE_TENANT_ID}
+      #     clientId: ${AZURE_CLIENT_ID}
+      #     clientSecret: ${AZURE_CLIENT_SECRET}
+      - disabled: true
+        package: ./dynamic-plugins/dist/backstage-plugin-catalog-backend-module-msgraph-dynamic

@@ -1,0 +1,104 @@
+# ──────────────────────────────────────────────────────────────────────────────
+# 02-configmap-app-config.yaml
+# Aplicar: oc apply -f 02-configmap-app-config.yaml -n devhub
+# Após aplicar: oc rollout restart deployment/backstage-developer-hub -n devhub
+# ──────────────────────────────────────────────────────────────────────────────
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: developer-hub-app-config
+  namespace: devhub
+data:
+  app-config.yaml: |
+    app:
+      title: Red Hat Developer Hub
+      baseUrl: https://backstage-developer-hub-devhub.apps.<CLUSTER_DOMAIN>
+
+    backend:
+      auth:
+        keys:
+          - secret: ${BACKEND_SECRET}
+      baseUrl: https://backstage-developer-hub-devhub.apps.<CLUSTER_DOMAIN>
+      cors:
+        origin: https://backstage-developer-hub-devhub.apps.<CLUSTER_DOMAIN>
+      allow:
+        - host: dev.azure.com
+        - host: login.microsoftonline.com
+        - host: graph.microsoft.com
+
+    # ── Autenticação Microsoft Entra ID ────────────────────────────────────────
+    auth:
+      environment: production
+      providers:
+        microsoft:
+          production:
+            clientId: ${AZURE_CLIENT_ID}
+            clientSecret: ${AZURE_CLIENT_SECRET}
+            tenantId: ${AZURE_TENANT_ID}
+            additionalScopes:
+              - https://app.vssps.visualstudio.com/user_impersonation
+            signIn:
+              resolvers:
+                - resolver: emailMatchingUserEntityAnnotation
+                  dangerouslyAllowSignInWithoutUserInCatalog: true
+    signInPage: microsoft
+
+    # ── Integração Azure (Service Principal — leitura do catálogo ADO) ─────────
+    # O App Registration DEVE ser adicionado como usuário na org ADO:
+    #   https://dev.azure.com/<ORG>/_settings/users
+    # Access level: Basic — adicionar aos projetos necessários
+    integrations:
+      azure:
+        - host: dev.azure.com
+          credentials:
+            - clientId: ${AZURE_CLIENT_ID}
+              clientSecret: ${AZURE_CLIENT_SECRET}
+              tenantId: ${AZURE_TENANT_ID}
+
+    # ── Azure DevOps ───────────────────────────────────────────────────────────
+    azureDevOps:
+      host: dev.azure.com
+      organization: <ADO_ORG>
+
+    # ── Proxy ──────────────────────────────────────────────────────────────────
+    proxy:
+      endpoints:
+        # Proxy para operações ADO (criar repo, pipeline, etc.)
+        # allowedHeaders OBRIGATÓRIO — sem ele o Bearer token é descartado silenciosamente
+        /azure-devops:
+          target: https://dev.azure.com
+          changeOrigin: true
+          allowedMethods: [GET, POST, DELETE, PATCH, PUT]
+          credentials: dangerously-allow-unauthenticated
+          allowedHeaders:
+            - Authorization
+            - Content-Type
+
+        # Proxy para obtenção de token OAuth2 via client_credentials
+        # LIMITAÇÕES IMPORTANTES:
+        #   1. target: ${VAR} NÃO é expandido — Tenant ID deve ser hardcoded
+        #   2. headers.Authorization: ${VAR} NÃO é expandido — usar Secret OpenShift
+        #      como env var, mas mesmo assim não funciona em proxy.headers
+        #   3. Solução final: Authorization Basic hardcoded no template.yaml
+        #      (repositório privado — mesma segurança que ConfigMap)
+        /azure-token:
+          target: https://login.microsoftonline.com/<AZURE_TENANT_ID>/oauth2/v2.0
+          changeOrigin: true
+          allowedMethods: [POST]
+          credentials: dangerously-allow-unauthenticated
+          headers:
+            # AZURE_SP_BASIC = base64("clientId:clientSecret")
+            # Gerado com: echo -n "<CLIENT_ID>:<CLIENT_SECRET>" | base64
+            # Adicionado ao Secret: oc patch secret developer-hub-env -n devhub
+            #   --type=merge -p '{"stringData":{"AZURE_SP_BASIC":"<valor>"}}'
+            # NOTA: ${AZURE_SP_BASIC} NÃO é expandido aqui — limitação do proxy Backstage
+            # O Authorization Basic real fica hardcoded no template.yaml
+            Authorization: "Basic <AZURE_SP_BASIC_BASE64>"
+          allowedHeaders:
+            - Content-Type
+
+    # ── Catálogo ───────────────────────────────────────────────────────────────
+    catalog:
+      locations:
+        - type: url
+          target: https://dev.azure.com/<ADO_ORG>/<ADO_PROJECT>/_git/devhub-ado-demo?path=/all-templates.yaml&version=GBmain

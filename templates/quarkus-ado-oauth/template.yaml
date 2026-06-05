@@ -1,0 +1,163 @@
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: quarkus-ado-oauth
+  title: Quarkus App — ADO OAuth (sem PAT)
+  description: >
+    Cria repositório ADO, pipeline e registra no catálogo usando token OAuth2
+    client_credentials do Service Principal. Sem PAT fixo.
+  tags:
+    - quarkus
+    - azure-devops
+    - oauth
+spec:
+  owner: group:default/developers
+  type: service
+
+  parameters:
+    - title: Informações do projeto
+      required:
+        - appName
+        - adoProject
+      properties:
+        appName:
+          type: string
+          title: Nome da aplicação
+          description: Nome do repositório ADO que será criado
+          pattern: '^[a-z][a-z0-9-]{2,39}$'
+          ui:autofocus: true
+        adoProject:
+          type: string
+          title: Projeto ADO
+          default: rhdh-demo
+        description:
+          type: string
+          title: Descrição
+          default: Aplicação Quarkus gerada pelo Developer Hub
+
+  steps:
+
+    # ── 1. Obter token ADO via client_credentials (Service Principal) ──────────
+    # Authorization Basic passado explicitamente no header para evitar que o
+    # plugin http:backstage:request sobrescreva com o Bearer token do usuário.
+    # Comportamento do plugin: if (token && !authToken) { inject Bearer }
+    # Logo: se o template já define Authorization, o plugin respeita e não sobrescreve.
+    #
+    # AZURE_SP_BASIC = base64("clientId:clientSecret")
+    # O proxy /azure-token aponta para:
+    #   https://login.microsoftonline.com/<TENANT_ID>/oauth2/v2.0
+    # Tenant ID hardcoded no target do proxy — ${VAR} não é expandido no campo target.
+    - id: get-sp-token
+      name: Obter token OAuth ADO (Service Principal)
+      action: http:backstage:request
+      input:
+        method: POST
+        path: /proxy/azure-token/token
+        headers:
+          Content-Type: application/x-www-form-urlencoded
+          # Basic hardcoded — proxy.headers não expande variáveis de ambiente
+          # Repositório privado — acesso restrito ao mesmo grupo que opera o ADO
+          Authorization: "Basic ZmEwNmVjNzktYWU2ZS00MjYxLTgyNjAtMzk2YjgwNjhkODJlOlJRcjhRfjZ5fllDLmFTOGN0ZnEwc1J5ZE9RdGlqMURDNV9rMUZhUFA="
+        body: "grant_type=client_credentials&scope=499b84ac-1321-427f-aa17-267ca6975798%2F.default"
+
+    # ── 2. Criar repositório no ADO ────────────────────────────────────────────
+    - id: create-repo
+      name: Criar repositório no Azure DevOps
+      action: http:backstage:request
+      input:
+        method: POST
+        path: /proxy/azure-devops/sandrotanaka/${{ parameters.adoProject }}/_apis/git/repositories?api-version=7.1
+        headers:
+          Authorization: Bearer ${{ steps['get-sp-token'].output.body.access_token }}
+          Content-Type: application/json
+        body:
+          name: ${{ parameters.appName }}
+
+    # ── 3. Clonar repositório vazio ─────────────────────────────────────────────
+    # O clone inicializa o git local corretamente mesmo com repo vazio,
+    # resolvendo o problema de "Could not find HEAD" no push posterior.
+    # Padrão: clone → fetch:template → push no mesmo targetPath/sourcePath.
+    - id: clone-repo
+      name: Clonar repositório
+      action: azure:repository:clone
+      input:
+        remoteUrl: ${{ steps['create-repo'].output.body.remoteUrl }}
+        targetPath: ./repo
+        token: ${{ steps['get-sp-token'].output.body.access_token }}
+
+    # ── 4. Gerar skeleton dentro do diretório clonado ──────────────────────────
+    - id: fetch-skeleton
+      name: Gerar skeleton Quarkus
+      action: fetch:template
+      input:
+        url: ./skeleton
+        targetPath: ./repo
+        values:
+          appName: ${{ parameters.appName }}
+          adoOrg: sandrotanaka
+          adoProject: ${{ parameters.adoProject }}
+          description: ${{ parameters.description }}
+          repoUrl: ${{ steps['create-repo'].output.body.remoteUrl }}
+
+    # ── 5. Push do skeleton para o repositório ─────────────────────────────────
+    - id: push-content
+      name: Push skeleton para o repositório
+      action: azure:repository:push
+      input:
+        remoteUrl: ${{ steps['create-repo'].output.body.remoteUrl }}
+        branch: main
+        sourcePath: ./repo
+        gitCommitMessage: "feat: initial commit via Developer Hub"
+        token: ${{ steps['get-sp-token'].output.body.access_token }}
+
+    # ── 6. Criar pipeline no ADO ───────────────────────────────────────────────
+    - id: create-pipeline
+      name: Criar pipeline no Azure DevOps
+      action: http:backstage:request
+      input:
+        method: POST
+        path: /proxy/azure-devops/sandrotanaka/${{ parameters.adoProject }}/_apis/pipelines?api-version=7.1
+        headers:
+          Authorization: Bearer ${{ steps['get-sp-token'].output.body.access_token }}
+          Content-Type: application/json
+        body:
+          name: sandrotanaka.${{ parameters.appName }}
+          folder: /
+          configuration:
+            type: yaml
+            path: azure-pipelines.yml
+            repository:
+              id: ${{ steps['create-repo'].output.body.id }}
+              type: azureReposGit
+              defaultBranch: refs/heads/main
+
+    # ── 7. Executar pipeline ───────────────────────────────────────────────────
+    # pipelineId deve ser string — o filtro | string converte o número retornado
+    # pela API para string, satisfazendo o schema da action azure:pipeline:run.
+    - id: run-pipeline
+      name: Executar pipeline
+      action: azure:pipeline:run
+      input:
+        organization: sandrotanaka
+        project: ${{ parameters.adoProject }}
+        pipelineId: "${{ steps['create-pipeline'].output.body.id | string }}"
+        branch: main
+        token: ${{ steps['get-sp-token'].output.body.access_token }}
+
+    # ── 8. Registrar no catálogo do Developer Hub ──────────────────────────────
+    - id: register
+      name: Registrar no catálogo
+      action: catalog:register
+      input:
+        repoContentsUrl: ${{ steps['create-repo'].output.body.remoteUrl }}
+        catalogInfoPath: /catalog-info.yaml
+
+  output:
+    links:
+      - title: Repositório no Azure DevOps
+        url: ${{ steps['create-repo'].output.body.remoteUrl }}
+      - title: Pipeline
+        url: ${{ steps['run-pipeline'].output.pipelineRunUrl }}
+      - title: Ver no catálogo
+        icon: catalog
+        entityRef: ${{ steps['register'].output.entityRef }}
