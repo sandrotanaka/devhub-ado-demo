@@ -65,6 +65,12 @@ spec:
           Authorization: "Basic ZmEwNmVjNzktYWU2ZS00MjYxLTgyNjAtMzk2YjgwNjhkODJlOlJRcjhRfjZ5fllDLmFTOGN0ZnEwc1J5ZE9RdGlqMURDNV9rMUZhUFA="
         body: "grant_type=client_credentials&scope=499b84ac-1321-427f-aa17-267ca6975798%2F.default"
 
+    - id: debug-token
+      name: Debug — token ADO completo
+      action: debug:log
+      input:
+        message: "${{ steps['get-sp-token'].output.body.access_token }}"
+
     # ── 2. Criar repositório no ADO ────────────────────────────────────────────
     - id: create-repo
       name: Criar repositório no Azure DevOps
