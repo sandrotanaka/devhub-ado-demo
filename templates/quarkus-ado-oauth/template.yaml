@@ -18,6 +18,7 @@ spec:
     - title: Informações do projeto
       required:
         - appName
+        - adoOrg
         - adoProject
       properties:
         appName:
@@ -26,6 +27,11 @@ spec:
           description: Nome do repositório ADO que será criado
           pattern: '^[a-z][a-z0-9-]{2,39}$'
           ui:autofocus: true
+        adoOrg:
+          type: string
+          title: Organização ADO
+          description: Nome da organização no Azure DevOps
+          default: sandrotanaka
         adoProject:
           type: string
           title: Projeto ADO
@@ -43,10 +49,11 @@ spec:
     # Comportamento do plugin: if (token && !authToken) { inject Bearer }
     # Logo: se o template já define Authorization, o plugin respeita e não sobrescreve.
     #
-    # AZURE_SP_BASIC = base64("clientId:clientSecret")
     # O proxy /azure-token aponta para:
     #   https://login.microsoftonline.com/<TENANT_ID>/oauth2/v2.0
     # Tenant ID hardcoded no target do proxy — ${VAR} não é expandido no campo target.
+    # Basic hardcoded — proxy.headers não expande variáveis de ambiente.
+    # Repositório privado — acesso restrito ao mesmo grupo que opera o ADO.
     - id: get-sp-token
       name: Obter token OAuth ADO (Service Principal)
       action: http:backstage:request
@@ -55,8 +62,6 @@ spec:
         path: /proxy/azure-token/token
         headers:
           Content-Type: application/x-www-form-urlencoded
-          # Basic hardcoded — proxy.headers não expande variáveis de ambiente
-          # Repositório privado — acesso restrito ao mesmo grupo que opera o ADO
           Authorization: "Basic ZmEwNmVjNzktYWU2ZS00MjYxLTgyNjAtMzk2YjgwNjhkODJlOlJRcjhRfjZ5fllDLmFTOGN0ZnEwc1J5ZE9RdGlqMURDNV9rMUZhUFA="
         body: "grant_type=client_credentials&scope=499b84ac-1321-427f-aa17-267ca6975798%2F.default"
 
@@ -66,7 +71,7 @@ spec:
       action: http:backstage:request
       input:
         method: POST
-        path: /proxy/azure-devops/sandrotanaka/${{ parameters.adoProject }}/_apis/git/repositories?api-version=7.1
+        path: /proxy/azure-devops/${{ parameters.adoOrg }}/${{ parameters.adoProject }}/_apis/git/repositories?api-version=7.1
         headers:
           Authorization: Bearer ${{ steps['get-sp-token'].output.body.access_token }}
           Content-Type: application/json
@@ -76,7 +81,7 @@ spec:
     # ── 3. Clonar repositório vazio ─────────────────────────────────────────────
     # O clone inicializa o git local corretamente mesmo com repo vazio,
     # resolvendo o problema de "Could not find HEAD" no push posterior.
-    # Padrão: clone → fetch:template → push no mesmo targetPath/sourcePath.
+    # Padrão validado: clone → fetch:template → push no mesmo targetPath/sourcePath.
     - id: clone-repo
       name: Clonar repositório
       action: azure:repository:clone
@@ -94,7 +99,7 @@ spec:
         targetPath: ./repo
         values:
           appName: ${{ parameters.appName }}
-          adoOrg: sandrotanaka
+          adoOrg: ${{ parameters.adoOrg }}
           adoProject: ${{ parameters.adoProject }}
           description: ${{ parameters.description }}
           repoUrl: ${{ steps['create-repo'].output.body.remoteUrl }}
@@ -116,12 +121,12 @@ spec:
       action: http:backstage:request
       input:
         method: POST
-        path: /proxy/azure-devops/sandrotanaka/${{ parameters.adoProject }}/_apis/pipelines?api-version=7.1
+        path: /proxy/azure-devops/${{ parameters.adoOrg }}/${{ parameters.adoProject }}/_apis/pipelines?api-version=7.1
         headers:
           Authorization: Bearer ${{ steps['get-sp-token'].output.body.access_token }}
           Content-Type: application/json
         body:
-          name: sandrotanaka.${{ parameters.appName }}
+          name: ${{ parameters.adoOrg }}.${{ parameters.appName }}
           folder: /
           configuration:
             type: yaml
@@ -138,7 +143,7 @@ spec:
       name: Executar pipeline
       action: azure:pipeline:run
       input:
-        organization: sandrotanaka
+        organization: ${{ parameters.adoOrg }}
         project: ${{ parameters.adoProject }}
         pipelineId: "${{ steps['create-pipeline'].output.body.id | string }}"
         branch: main
