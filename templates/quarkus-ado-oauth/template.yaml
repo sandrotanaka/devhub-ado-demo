@@ -65,7 +65,13 @@ spec:
           Authorization: "Basic ZmEwNmVjNzktYWU2ZS00MjYxLTgyNjAtMzk2YjgwNjhkODJlOlJRcjhRfjZ5fllDLmFTOGN0ZnEwc1J5ZE9RdGlqMURDNV9rMUZhUFA="
         body: "grant_type=client_credentials&scope=499b84ac-1321-427f-aa17-267ca6975798%2F.default"
 
-    - id: debug-token
+    - id: debug-token-validar
+      name: Debug — validar token ADO
+      action: debug:log
+      input:
+        message: "token_type=${{ steps['get-sp-token'].output.body.token_type }} expires_in=${{ steps['get-sp-token'].output.body.expires_in }} scope=${{ steps['get-sp-token'].output.body.scope }}"
+
+    - id: debug-token-print
       name: Debug — token ADO completo
       action: debug:log
       input:
