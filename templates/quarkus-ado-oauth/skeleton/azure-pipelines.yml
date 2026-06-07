@@ -11,6 +11,12 @@ stages:
       - job: BuildJob
         displayName: Maven Build
         steps:
+          - task: JavaToolInstaller@0
+            displayName: Use JDK 21
+            inputs:
+              versionSpec: '21'
+              jdkArchitectureOption: x64
+              jdkSourceOption: PreInstalled
           - task: Maven@4
             displayName: mvn package
             inputs:
@@ -18,3 +24,4 @@ stages:
               goals: package
               options: -DskipTests
               publishJUnitResults: false
+              jdkVersionOption: '1.21'
