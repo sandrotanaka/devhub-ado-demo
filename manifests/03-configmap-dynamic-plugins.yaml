@@ -1,7 +1,7 @@
 # ──────────────────────────────────────────────────────────────────────────────
 # 03-configmap-dynamic-plugins.yaml
-# Aplicar: oc apply -f 03-configmap-dynamic-plugins.yaml -n devhub
-# Após aplicar: oc rollout restart deployment/backstage-developer-hub -n devhub
+# Apply: oc apply -f 03-configmap-dynamic-plugins.yaml -n devhub
+# After applying: oc rollout restart deployment/backstage-developer-hub -n devhub
 # ──────────────────────────────────────────────────────────────────────────────
 apiVersion: v1
 kind: ConfigMap
@@ -14,22 +14,22 @@ data:
       - dynamic-plugins.default.yaml
     plugins:
 
-      # ── Scaffolder ────────────────────────────────────────────────────────────
+      # ── Scaffolder ─────────────────────────────────────────────────────────────
       - disabled: false
         package: ./dynamic-plugins/dist/backstage-community-plugin-scaffolder-backend-module-kubernetes-dynamic
       - disabled: true
         package: ./dynamic-plugins/dist/backstage-plugin-scaffolder-backend-module-github-dynamic
 
-      # ── HTTP Request — registra action http:backstage:request ─────────────────
-      # Já incluso no dynamic-plugins.default.yaml — apenas habilitando
-      # NOTA: Este plugin injeta automaticamente o Bearer token do usuário em
-      # toda requisição, a menos que o template já defina Authorization explicitamente.
-      # Comportamento: if (token && !authToken) { headers.authorization = Bearer token }
+      # ── HTTP Request — registers the http:backstage:request scaffolder action ───
+      # Already included in dynamic-plugins.default.yaml — enabling only
+      # NOTE: This plugin automatically injects the user's Bearer token in every
+      # request, unless the template already explicitly defines the Authorization header.
+      # Behavior: if (token && !authToken) { headers.authorization = Bearer token }
       - disabled: false
         package: ./dynamic-plugins/dist/roadiehq-scaffolder-backend-module-http-request-dynamic
 
-      # ── Azure DevOps Frontend ─────────────────────────────────────────────────
-      # Exibe aba "Azure Pipelines - CI" nas páginas de componentes do catálogo
+      # ── Azure DevOps Frontend ──────────────────────────────────────────────────
+      # Displays the "Azure Pipelines - CI" tab on catalog component pages
       - disabled: false
         package: oci://ghcr.io/redhat-developer/rhdh-plugin-export-overlays/backstage-community-plugin-azure-devops:bs_1.45.3__0.23.0
         pluginConfig:
@@ -47,7 +47,7 @@ data:
                       layout:
                         gridColumn: 1 / -1
 
-      # ── Azure DevOps Backend ──────────────────────────────────────────────────
+      # ── Azure DevOps Backend ───────────────────────────────────────────────────
       - disabled: false
         package: oci://ghcr.io/redhat-developer/rhdh-plugin-export-overlays/backstage-community-plugin-azure-devops-backend:bs_1.45.3__0.23.0
 
@@ -56,16 +56,16 @@ data:
         package: oci://ghcr.io/redhat-developer/rhdh-plugin-export-overlays/backstage-community-plugin-catalog-backend-module-azure-devops-annotator-processor:bs_1.45.3__0.14.0
 
       # ── Azure DevOps Scaffolder Actions ───────────────────────────────────────
-      # Registra: azure:repository:clone, azure:repository:push,
-      #           azure:pipeline:create, azure:pipeline:run, azure:pr:create
+      # Registers: azure:repository:clone, azure:repository:push,
+      #            azure:pipeline:create, azure:pipeline:run, azure:pr:create
       - disabled: false
         package: oci://ghcr.io/redhat-developer/rhdh-plugin-export-overlays/backstage-community-plugin-scaffolder-backend-module-azure-devops:bs_1.45.3__0.18.0
 
-      # ── Azure DevOps Search ───────────────────────────────────────────────────
+      # ── Azure DevOps Search ────────────────────────────────────────────────────
       - disabled: false
         package: oci://ghcr.io/redhat-developer/rhdh-plugin-export-overlays/backstage-community-plugin-search-backend-module-azure-devops:bs_1.45.3__0.1.2
 
-      # ── GitHub (desabilitado — ambiente ADO-only) ─────────────────────────────
+      # ── GitHub (disabled — ADO-only environment) ───────────────────────────────
       - disabled: true
         package: oci://ghcr.io/redhat-developer/rhdh-plugin-export-overlays/roadiehq-backstage-plugin-github-pull-requests:bs_1.45.3__3.6.2
       - disabled: true
@@ -97,7 +97,7 @@ data:
       - disabled: false
         package: oci://quay.io/redhat-tssc/backstage-plugins:1.9.0!tssc-plugins-backstage-community-plugin-multi-source-security-viewer-backend
 
-      # ── Kubernetes (desabilitado) ─────────────────────────────────────────────
+      # ── Kubernetes (disabled) ──────────────────────────────────────────────────
       - disabled: true
         package: ./dynamic-plugins/dist/backstage-plugin-kubernetes
       - disabled: true
@@ -127,11 +127,11 @@ data:
       - disabled: false
         package: ./dynamic-plugins/dist/backstage-plugin-signals-backend-dynamic
 
-      # ── MicrosoftGraph ────────────────────────────────────────────────────────
-      # DESABILITADO — requer permissões Application no App Registration:
+      # ── MicrosoftGraph (disabled) ──────────────────────────────────────────────
+      # Requires Application permissions in the App Registration:
       #   Microsoft Graph → User.Read.All (Application)
       #   Microsoft Graph → GroupMember.Read.All (Application)
-      # Para habilitar, adicionar também no app-config:
+      # To enable, also add to app-config:
       #   catalog.providers.microsoftGraphOrg.providerId:
       #     tenantId: ${AZURE_TENANT_ID}
       #     clientId: ${AZURE_CLIENT_ID}

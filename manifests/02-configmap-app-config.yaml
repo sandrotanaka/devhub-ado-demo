@@ -1,27 +1,17 @@
 # ──────────────────────────────────────────────────────────────────────────────
 # 02-configmap-app-config.yaml
+# Apply: oc apply -f 02-configmap-app-config.yaml -n devhub
+# After applying: oc rollout restart deployment/backstage-developer-hub -n devhub
 #
-# EN:    Apply: oc apply -f 02-configmap-app-config.yaml -n devhub
-#        After applying: oc rollout restart deployment/backstage-developer-hub -n devhub
-# PT-BR: Aplicar: oc apply -f 02-configmap-app-config.yaml -n devhub
-#        Após aplicar: oc rollout restart deployment/backstage-developer-hub -n devhub
-#
-# Placeholders:
-#   <CLUSTER_DOMAIN>  — EN: OCP cluster domain
-#                       PT-BR: domínio do cluster OCP
-#                       ex: cluster-2xq48.dynamic2.redhatworkshops.io
-#
-#   <AZURE_TENANT_ID> — EN: Entra ID Tenant ID (azure-token proxy target field)
-#                       PT-BR: Tenant ID do Entra ID (campo target do proxy azure-token)
-#                       ex: 60b50963-f5ed-4dd8-aa34-cc449ed7bcef
-#
-#   <ADO_ORG>         — EN: Azure DevOps organization
-#                       PT-BR: Organização Azure DevOps
-#                       ex: sandrotanaka
-#
-#   <ADO_PROJECT>     — EN: Azure DevOps project
-#                       PT-BR: Projeto Azure DevOps
-#                       ex: rhdh-demo
+# Placeholders to replace:
+#   <CLUSTER_DOMAIN>  — OCP cluster domain
+#                       e.g.: cluster-2xq48.dynamic2.redhatworkshops.io
+#   <AZURE_TENANT_ID> — Entra ID Tenant ID (in the azure-token proxy target field)
+#                       e.g.: 60b50963-f5ed-4dd8-aa34-cc449ed7bcef
+#   <ADO_ORG>         — Azure DevOps organization
+#                       e.g.: sandrotanaka
+#   <ADO_PROJECT>     — Azure DevOps project
+#                       e.g.: rhdh-demo
 # ──────────────────────────────────────────────────────────────────────────────
 apiVersion: v1
 kind: ConfigMap
@@ -46,8 +36,7 @@ data:
         - host: login.microsoftonline.com
         - host: graph.microsoft.com
 
-    # ── EN: Microsoft Entra ID Authentication ─────────────────────────────────
-    # ── PT-BR: Autenticação Microsoft Entra ID ────────────────────────────────
+    # ── Microsoft Entra ID Authentication ─────────────────────────────────────
     auth:
       environment: production
       providers:
@@ -64,10 +53,8 @@ data:
                   dangerouslyAllowSignInWithoutUserInCatalog: true
     signInPage: microsoft
 
-    # ── EN: Azure Integration (Service Principal — ADO catalog reading) ────────
-    # ── PT-BR: Integração Azure (Service Principal — leitura do catálogo ADO) ─
-    # EN:    The App Registration MUST be added as a user in the ADO org:
-    # PT-BR: O App Registration DEVE ser adicionado como usuário na org ADO:
+    # ── Azure Integration (Service Principal — ADO catalog reading) ────────────
+    # The App Registration MUST be added as a user in the ADO org:
     #   https://dev.azure.com/<ADO_ORG>/_settings/users
     # Access level: Basic + Project Administrators
     integrations:
@@ -78,6 +65,7 @@ data:
               clientSecret: ${AZURE_CLIENT_SECRET}
               tenantId: ${AZURE_TENANT_ID}
 
+    # ── Azure DevOps ───────────────────────────────────────────────────────────
     azureDevOps:
       host: dev.azure.com
       organization: <ADO_ORG>
@@ -85,8 +73,9 @@ data:
     # ── Proxy ──────────────────────────────────────────────────────────────────
     proxy:
       endpoints:
-        # EN:    Proxy for ADO operations — allowedHeaders REQUIRED
-        # PT-BR: Proxy para operações ADO — allowedHeaders OBRIGATÓRIO
+        # Proxy for ADO operations (create repo, pipeline, etc.)
+        # allowedHeaders REQUIRED — without it the Bearer token is silently dropped
+        # and ADO returns 302
         /azure-devops:
           target: https://dev.azure.com
           changeOrigin: true
@@ -96,14 +85,11 @@ data:
             - Authorization
             - Content-Type
 
-        # EN:    Proxy for OAuth2 token acquisition via client_credentials
-        #        Do NOT include Authorization here — the Basic header comes from the template
-        #        The plugin sends the header before proxy processing — proxy Authorization is ignored
-        #        LIMITATION: ${VAR} is NOT expanded in the target field — Tenant ID hardcoded
-        # PT-BR: Proxy para obtenção de token OAuth2 via client_credentials
-        #        NÃO incluir Authorization aqui — o header Basic vem do template
-        #        O plugin envia o header antes do proxy — Authorization no proxy seria ignorado
-        #        LIMITAÇÃO: ${VAR} não é expandido no campo target — Tenant ID hardcoded
+        # Proxy for OAuth2 token acquisition via client_credentials
+        # NOTE: Do NOT include Authorization here — the Basic header comes from the template
+        # The http:backstage:request plugin sends the Authorization header before the request
+        # reaches the proxy, so any proxy-level Authorization would be ignored.
+        # LIMITATION: ${VAR} is NOT expanded in the target field — Tenant ID must be hardcoded
         /azure-token:
           target: https://login.microsoftonline.com/<AZURE_TENANT_ID>/oauth2/v2.0
           changeOrigin: true
@@ -113,7 +99,7 @@ data:
             - Authorization
             - Content-Type
 
-    # ── EN: Catalog / PT-BR: Catálogo ─────────────────────────────────────────
+    # ── Catalog ────────────────────────────────────────────────────────────────
     catalog:
       locations:
         - type: url
