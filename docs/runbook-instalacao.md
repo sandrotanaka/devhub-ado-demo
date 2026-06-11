@@ -4,6 +4,12 @@ Red Hat Developer Hub v1.9.4 + Microsoft Entra ID + Azure DevOps OAuth2 (no PAT 
 
 ---
 
+
+> **Where to host this repository / Onde hospedar este repositório:**
+> EN: For a working deployment, this repository must be hosted in **Azure DevOps**. The RHDH catalog uses the `integrations.azure` Service Principal credentials to read `all-templates.yaml` at runtime. The GitHub repository is a public reference only — clone it into your ADO organization and update the catalog location in `manifests/02-configmap-app-config.yaml`.
+>
+> PT-BR: Para um ambiente funcional, este repositório deve estar hospedado no **Azure DevOps**. O catálogo do RHDH usa as credenciais do Service Principal em `integrations.azure` para ler o `all-templates.yaml` em runtime. O repositório GitHub é apenas referência pública — clone-o na sua organização ADO e atualize o catalog location em `manifests/02-configmap-app-config.yaml`.
+
 ## Prerequisites / Pré-requisitos
 
 - [ ] OpenShift cluster with `cluster-admin` access / Cluster OpenShift com acesso `cluster-admin`

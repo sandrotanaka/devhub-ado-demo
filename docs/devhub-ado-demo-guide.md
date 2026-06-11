@@ -28,6 +28,11 @@
 
 ---
 
+
+> **Where to host this repository:** for a working deployment, this repository must be hosted in **Azure DevOps** — not GitHub. The RHDH catalog uses the `integrations.azure` Service Principal credentials to read `all-templates.yaml` and the template files at runtime. Hosting on GitHub requires a separate GitHub integration and a different catalog location URL format. The GitHub repository serves as a public reference only. For your own deployment, clone it into your ADO organization and update the catalog location in `manifests/02-configmap-app-config.yaml` accordingly.
+
+> **Onde hospedar este repositório:** para um ambiente funcional, este repositório deve estar hospedado no **Azure DevOps** — não no GitHub. O catálogo do RHDH usa as credenciais do Service Principal em `integrations.azure` para ler o `all-templates.yaml` em runtime. O repositório GitHub é apenas referência pública. Clone-o na sua organização ADO e atualize o catalog location em `manifests/02-configmap-app-config.yaml`.
+
 ## 1. Overview
 
 This document describes the complete configuration process for Red Hat Developer Hub (RHDH) integrated with Microsoft Entra ID for authentication and Azure DevOps for scaffolder operations — using the OAuth2 client_credentials token from the Service Principal instead of a fixed PAT.

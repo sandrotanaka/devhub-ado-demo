@@ -35,6 +35,9 @@ devhub-ado-demo/
 
 ### Prerequisites
 
+> **Where to host this repository:** the template reads its content directly from the ADO catalog location configured in `app-config.yaml`. For a working deployment, this repository must be hosted in **Azure DevOps** — the RHDH catalog uses the `integrations.azure` Service Principal credentials to read `all-templates.yaml` and the template files at runtime. The GitHub repository serves as a public reference only. For your own deployment, clone it into your ADO organization and update the catalog location in `manifests/02-configmap-app-config.yaml` accordingly.
+
+
 - OpenShift with RHDH Operator v1.9.4 installed
 - App Registration in Microsoft Entra ID with `Azure DevOps — user_impersonation` permission
 - Service Principal added as user in the ADO organization (`Basic` + `Project Administrators`)
