@@ -73,6 +73,12 @@ spec:
     # SECURITY NOTE:
     # This template should be hosted in a PRIVATE Azure DevOps repository.
     # Replace the placeholder below with your own generated Base64 value.
+    #
+    # DEMO NOTICE:
+    # All sensitive values in this file (Client IDs, Client Secrets, tokens)
+    # were generated exclusively for demonstration purposes and are
+    # REVOKED, EXPIRED or INVALIDATED.
+    # None of these values grant access to any system.
     - id: get-sp-token
       name: Get ADO OAuth Token (Service Principal)
       action: http:backstage:request
@@ -82,7 +88,9 @@ spec:
         headers:
           Content-Type: application/x-www-form-urlencoded
           # Replace with: echo -n "<YOUR_CLIENT_ID>:<YOUR_CLIENT_SECRET>" | base64
-          Authorization: "Basic <YOUR_AZURE_SP_BASIC_BASE64>"
+          # NOTE: The value below is a fictitious placeholder — not a real credential.
+          #       Replace it with your own before deploying.
+          Authorization: "Basic <YOUR_AZURE_SP_BASIC_BASE64>"  # fictitious — replace with your own
         body: "grant_type=client_credentials&scope=499b84ac-1321-427f-aa17-267ca6975798%2F.default"
 
     # ── 2. Create repository in ADO ────────────────────────────────────────────
