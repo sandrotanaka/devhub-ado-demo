@@ -44,16 +44,35 @@ spec:
   steps:
 
     # ── 1. Get ADO token via client_credentials (Service Principal) ────────────
-    # Authorization Basic passed explicitly in the header to prevent the
-    # http:backstage:request plugin from overwriting it with the user's Bearer token.
-    # Plugin behavior: if (token && !authToken) { inject Bearer }
-    # Therefore: if the template already defines Authorization, the plugin respects it.
     #
-    # The /azure-token proxy points to:
-    #   https://login.microsoftonline.com/<TENANT_ID>/oauth2/v2.0
-    # Tenant ID hardcoded in the proxy target — ${VAR} is not expanded in target field.
-    # Basic hardcoded — proxy.headers does not expand environment variables.
-    # Private repository — access restricted to the same group that operates ADO.
+    # WHAT IS THE BASIC VALUE?
+    # The Authorization: Basic header is NOT an Entra ID token.
+    # It is HTTP Basic Auth — the Base64 encoding of "clientId:clientSecret"
+    # from your Entra ID App Registration:
+    #
+    #   echo -n "<YOUR_CLIENT_ID>:<YOUR_CLIENT_SECRET>" | base64
+    #
+    # The actual OAuth2 flow is:
+    #   1. Template sends Authorization: Basic <base64> → Entra ID
+    #   2. Entra ID validates the credentials and returns a JWT access token
+    #      scoped to Azure DevOps (aud: 499b84ac-...)
+    #   3. That token is used in ADO API calls — expires in ~1 hour
+    #
+    # So what is stored here is the App Registration credential
+    # (equivalent to a username:password), NOT the token itself.
+    # Rotating the clientSecret in Entra ID invalidates this value
+    # and requires regenerating the Base64.
+    #
+    # WHY IS IT IN THE TEMPLATE AND NOT THE PROXY?
+    # The http:backstage:request plugin (v5.5.1) automatically overwrites
+    # any Authorization header set at the proxy level with the user's Bearer token:
+    #   if (token && !authToken) { headers.authorization = `Bearer ${token}` }
+    # By setting Authorization explicitly here, the plugin sees authToken is
+    # already defined and leaves it alone.
+    #
+    # SECURITY NOTE:
+    # This template should be hosted in a PRIVATE Azure DevOps repository.
+    # Replace the placeholder below with your own generated Base64 value.
     - id: get-sp-token
       name: Get ADO OAuth Token (Service Principal)
       action: http:backstage:request
@@ -62,7 +81,8 @@ spec:
         path: /proxy/azure-token/token
         headers:
           Content-Type: application/x-www-form-urlencoded
-          Authorization: "Basic ZmEwNmVjNzktYWU2ZS00MjYxLTgyNjAtMzk2YjgwNjhkODJlOlJRcjhRfjZ5fllDLmFTOGN0ZnEwc1J5ZE9RdGlqMURDNV9rMUZhUFA="
+          # Replace with: echo -n "<YOUR_CLIENT_ID>:<YOUR_CLIENT_SECRET>" | base64
+          Authorization: "Basic <YOUR_AZURE_SP_BASIC_BASE64>"
         body: "grant_type=client_credentials&scope=499b84ac-1321-427f-aa17-267ca6975798%2F.default"
 
     # ── 2. Create repository in ADO ────────────────────────────────────────────
