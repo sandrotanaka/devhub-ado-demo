@@ -91,8 +91,7 @@ spec:
           # NOTE: The value below is a fictitious placeholder — not a real credential.
           #       Replace it with your own before deploying.
           Authorization: "Basic <YOUR_AZURE_SP_BASIC_BASE64>"  # fictitious — replace with your own
-        body: "grant_type=client_credentials&scope=499b84ac-1321-427f-aa17-267ca6975798%2F.default"
-
+          body: "grant_type=client_credentials&scope=499b84ac-1321-427f-aa17-267ca6975798%2F.default"
     # ── 2. Create repository in ADO ────────────────────────────────────────────
     - id: create-repo
       name: Create repository in Azure DevOps

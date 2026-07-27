@@ -4,13 +4,13 @@
 # After applying: oc rollout restart deployment/backstage-developer-hub -n devhub
 #
 # Placeholders to replace:
-#   <CLUSTER_DOMAIN>  — OCP cluster domain
+#   apps.cluster-gm89f.dyn.redhatworkshops.io  — OCP cluster domain
 #                       e.g.: cluster-2xq48.dynamic2.redhatworkshops.io
-#   <AZURE_TENANT_ID> — Entra ID Tenant ID (in the azure-token proxy target field)
+#   60b50963-f5ed-4dd8-aa34-cc449ed7bcef — Entra ID Tenant ID (in the azure-token proxy target field)
 #                       e.g.: 60b50963-f5ed-4dd8-aa34-cc449ed7bcef
-#   <ADO_ORG>         — Azure DevOps organization
+#   sandrotanaka         — Azure DevOps organization
 #                       e.g.: sandrotanaka
-#   <ADO_PROJECT>     — Azure DevOps project
+#   rhdh-demo     — Azure DevOps project
 #                       e.g.: rhdh-demo
 # ──────────────────────────────────────────────────────────────────────────────
 apiVersion: v1
@@ -22,15 +22,15 @@ data:
   app-config.yaml: |
     app:
       title: Red Hat Developer Hub
-      baseUrl: https://backstage-developer-hub-devhub.apps.<CLUSTER_DOMAIN>
+      baseUrl: https://backstage-developer-hub-devhub.apps.cluster-gm89f.dyn.redhatworkshops.io
 
     backend:
       auth:
         keys:
           - secret: ${BACKEND_SECRET}
-      baseUrl: https://backstage-developer-hub-devhub.apps.<CLUSTER_DOMAIN>
+      baseUrl: https://backstage-developer-hub-devhub.apps.cluster-gm89f.dyn.redhatworkshops.io
       cors:
-        origin: https://backstage-developer-hub-devhub.apps.<CLUSTER_DOMAIN>
+        origin: https://backstage-developer-hub-devhub.apps.cluster-gm89f.dyn.redhatworkshops.io
       allow:
         - host: dev.azure.com
         - host: login.microsoftonline.com
@@ -55,7 +55,7 @@ data:
 
     # ── Azure Integration (Service Principal — ADO catalog reading) ────────────
     # The App Registration MUST be added as a user in the ADO org:
-    #   https://dev.azure.com/<ADO_ORG>/_settings/users
+    #   https://dev.azure.com/sandrotanaka/_settings/users
     # Access level: Basic + Project Administrators
     integrations:
       azure:
@@ -68,7 +68,7 @@ data:
     # ── Azure DevOps ───────────────────────────────────────────────────────────
     azureDevOps:
       host: dev.azure.com
-      organization: <ADO_ORG>
+      organization: sandrotanaka
 
     # ── Proxy ──────────────────────────────────────────────────────────────────
     proxy:
@@ -91,7 +91,7 @@ data:
         # reaches the proxy, so any proxy-level Authorization would be ignored.
         # LIMITATION: ${VAR} is NOT expanded in the target field — Tenant ID must be hardcoded
         /azure-token:
-          target: https://login.microsoftonline.com/<AZURE_TENANT_ID>/oauth2/v2.0
+          target: https://login.microsoftonline.com/60b50963-f5ed-4dd8-aa34-cc449ed7bcef/oauth2/v2.0
           changeOrigin: true
           allowedMethods: [POST]
           credentials: dangerously-allow-unauthenticated
@@ -103,4 +103,4 @@ data:
     catalog:
       locations:
         - type: url
-          target: https://dev.azure.com/<ADO_ORG>/<ADO_PROJECT>/_git/devhub-ado-demo?path=/all-templates.yaml&version=GBmain
+          target: https://dev.azure.com/sandrotanaka/rhdh-demo/_git/devhub-ado-demo?path=/all-templates.yaml&version=GBmain
